@@ -1,0 +1,50 @@
+div.ap-wrapper {
+	position: relative;
+    vertical-align: middle;
+    margin-top: -1px;
+}
+
+input.ap-input {
+	position: absolute;
+    top: 0;
+    left: 0;
+    margin: 0;
+    width: 100%;
+    outline: none;
+}
+
+input.ap-hint {
+	z-index: -1;
+	border-color: transparent;
+	color: #ddd;
+}
+
+ul.ap-list {
+	position: absolute;
+	display: block;
+	display: none;
+	left: 0;
+	outline: 0;
+	margin: 0;
+	padding: 0;
+	text-align: left;
+	cursor: default;
+	border: 1px solid #aaa;
+	border-top: 0;
+	width: 100%;
+	overflow-x: hidden;
+	overflow-y: auto;
+	z-index: 99999999;
+	list-style: none;
+	padding: 0;
+	box-sizing: border-box;
+	background-color: #fff;
+}
+
+li.ap-listitem {
+	padding: 3px 0;
+}
+
+li.ap-listitem.ap-hover {
+	background-color: #eee;
+}
