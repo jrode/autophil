@@ -6,15 +6,31 @@
  * This is a simple, google-like autocomplete plugin. 
 **/
 
-// Call on an input element
-// dataArray: an array of strings
+/* Call autophil() on an input element
+
+    dataArray: an array of strings
+    
+    options = {
+        maxSuggestions: (int) - default 15 - maximum number of items in dropdown
+        delim: (char or string) - default '|' - delimiter character when using tabStopOnDelimiter
+        tabStopOnDelimiter: (boolean) - default false - when true a tab/enter keypress event fills only to next delimiter
+        multiStringMatch: (boolean) - default false - when true suggestions include partial matches of each word in search string
+    }
+*/
+
 ;(function($, document, window, undefined) {
 
-    $.fn.autophil = function(dataArray) {
+    $.fn.autophil = function(dataArray, options) {
+        options = options || {};
 
         // options
-        var options = [];
-        var maxSuggestions = 10;
+        var maxSuggestions = options.maxSuggestions || 15;
+        var delim = options.delim || '|';
+        var tabStopOnDelimiter = options.tabStopOnDelimiter || false;
+        var multiStringMatch = options.multiStringMatch || false;
+
+        // override conflicting settings
+        if (multiStringMatch) tabStopOnDelimiter = false;
 
         // dom elements
         var wrapper;
@@ -30,10 +46,11 @@
         var matchedIds;
         var noMatches;
         var partialText;
+        var opts = [];
 
         return this.each(function() {
             init(this);
-        });
+        }).focus();
 
         function init(input) {
             // exit if invalid Array
@@ -42,7 +59,7 @@
                 return false;
             }
 
-            options = dataArray.sort().map(function(str) { return str.toLowerCase(); });
+            opts = dataArray.sort().map(function(str) { return str.toLowerCase(); });
 
             originalInput = $(input);
             $.fn.autophil.destroy(originalInput);
@@ -55,9 +72,9 @@
         function createListItems() {
             dropDown.empty();
 
-            for (var i = 0; i < options.length; i++) {
+            for (var i = 0; i < opts.length; i++) {
                 var li = listItemTemplate.clone();
-                li.text(options[i]).attr('data-option', i);
+                li.text(opts[i]).attr('data-option', i);
                 li.appendTo(dropDown);
             }
 
@@ -147,20 +164,24 @@
 
             // TAB, ENTER, END, RIGHT --> select an item
             if (keyCode === 9 || keyCode === 13 || keyCode === 35 || keyCode === 39) {
+                var choice = null;
+                if (fillItem !== null) choice = fillItem;
+                if (currentHover !== null) choice = currentHover;
+
                 // if something is selected
-                if (currentHover || fillItem) {
-                    itemSelect({}, currentHover || fillItem);
+                if (choice !== null) {
+                    itemSelect({}, choice);
                     return false; // prevent form submit
                 }
             }
         }
 
         function keyUpHandler(e) {
-            e = e || window.event;
+            e = e || {};
             var keyCode = e.keyCode;
 
             // TAB, ENTER, PAGE UP, PAGE DOWN, END, RIGHT --> do nothing
-            if ([9, 13, 33, 34, 35, 39].indexOf(keyCode) !== -1) { return; }
+            if ([9, 13, 33, 34, 35, 39].indexOf(keyCode) !== -1) { return false; }
 
             // ESCAPE --> hide list and selected items
             if (keyCode === 27) {
@@ -175,17 +196,36 @@
 
             handleUpAndDownKeys(keyCode);
 
-            fillItem = currentHover || topItem || null;
+            fillItem = null;
+            if (topItem !== null) fillItem = topItem;
+            if (currentHover !== null) fillItem = currentHover;
+
             itemHover();
             updateHint(fillItem);
         }
 
         function processInputText() {
             partialText = originalInput.val().trim();
-            var regex = new RegExp('^' + partialText + '.+$');
-            var matches = options.map(function(s) { return regex.test(s); });
-            matchedIds = [];
+            searchText = partialText.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+            
+            if (multiStringMatch) {
+                var searches = searchText.split(' ');
+                var matches = opts.map(function(item) {
+                    for (var i = 0; i < searches.length; i++) {
+                        if (! new RegExp(searches[i]).test(item)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                });
 
+            } else {
+
+                var regex = new RegExp('^' + searchText + '.+$');
+                var matches = opts.map(function(item) { return regex.test(item); });
+            }
+
+            matchedIds = [];
             for (var i = 0; i < matches.length; i++) {
                 if (matches[i]) {
                     matchedIds.push(i);
@@ -207,7 +247,11 @@
                     // toggle row
                     if (matches[i] && ++num < maxSuggestions) {
                         $li.show();
-                        $li.html(partialText + '<b>' + options[i].substr(partialText.length) + '</b>');
+                        if (multiStringMatch) {
+                            $li.text(opts[i]);
+                        } else {
+                            $li.html(partialText + '<b>' + opts[i].substr(partialText.length) + '</b>');
+                        }
                     } else {
                         $li.hide();
                     }
@@ -244,7 +288,7 @@
         }
 
         function updateHint(id) {
-            hiddenInput.val(id !== null ? options[id] : '');
+            hiddenInput.val(id !== null && !multiStringMatch ? opts[id] : '');
         }
 
         function removeHint(e) {
@@ -254,14 +298,26 @@
         function itemSelect(e, id) {
             currentHover = null;
             itemFill = null;
+            var fillText = listItems.eq(id).text();
+
+            if (tabStopOnDelimiter && e.type !== 'click') {
+                var remainingText = fillText.substr(partialText.length);
+                var delimStart = remainingText.indexOf(delim);
+
+                if (delimStart !== -1) {
+                    fillText = fillText.substr(0, partialText.length) + remainingText.substr(0, delimStart) + delim + ' ';
+                    partialText = fillText;
+                    itemFill = id;
+                }
+            }
+
             itemHover();
-            originalInput.val(listItems.eq(id).text());
+            originalInput.val(fillText);
             keyUpHandler(e);
         }
     }
 
     $.fn.autophil.destroy = function(originalInput) {
-        console.log(originalInput);
         if (originalInput.hasClass('ap-input')) {
             var oldWrapper = originalInput.parent();
             var wrapperParent = oldWrapper.parent();
