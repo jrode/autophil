@@ -264,11 +264,12 @@
 
         handleUpAndDownKeys: function(keyCode) {
             // UP
-            if (keyCode === 38 && !noMatches) {
-                var lastVisible = this.matchedIds[matchedIds.length - 1];
+            if (keyCode === 38 && !this.noMatches) {
+                var lastVisible = this.matchedIds[this.matchedIds.length - 1];
                 var currIndex = this.matchedIds.indexOf(this.currentHover);
                 this.currentHover = this.currentHover && this.currentHover > 0 ? this.matchedIds[currIndex - 1] : lastVisible;
                 this.itemHover();
+                this.element.get(0).setSelectionRange(this.partialText.length, this.partialText.length);
             }
 
             // DOWN
