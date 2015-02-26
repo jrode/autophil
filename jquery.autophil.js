@@ -2,22 +2,7 @@
  * autophil v1.0.0 - the genesis of autofills
  * MIT Licensing
  * Copyright (c) 2015 Justin Rodermond
- *
- * This is a simple, google-like autocomplete plugin. 
 **/
-
-/* Call autophil() on an input element
-
-    dataArray: an array of strings
-    
-    options = {
-        opts: (array of strings) - the autofill suggestions
-        maxSuggestions: (int) - default 15 - maximum number of items to show in dropdown
-        delim: (char or string) - default '|' - delimiter character when using tabStopOnDelimiter
-        tabStopOnDelimiter: (boolean) - default false - when true a tab/enter keypress event fills only to next delimiter
-        multiStringMatch: (boolean) - default false - when true suggestions include partial matches of each word in search string
-    }
-*/
 
 ;(function($, window, document, undefined) {
 
