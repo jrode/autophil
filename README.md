@@ -2,19 +2,20 @@ autophil
 ========
 The Genesis of autofills.
 
-Usage
-=====
+# Usage
 
 Create:
 ```
 $('input').autophil({
 	opts: [
-		'how you get pink eye',
+		'how do you get pink eye',
 		'how do you build a snowman',
 		'how do you build a snowman in minecraft',
 		'how do you get bed bugs']
-})
+});
 ```
+
+![autophil screenshot](https://github.com/jrode/autophil/raw/master/img/screenshot.png)
 
 Destroy:
 ```
