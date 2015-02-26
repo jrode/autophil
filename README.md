@@ -1,8 +1,11 @@
-# autophil
+autophil
+========
 The Genesis of autofills.
 
-Usage:
+Usage
+=====
 
+Create:
 ```
 $('input').autophil({
 	opts: [
@@ -12,4 +15,17 @@ $('input').autophil({
 		'how do you get bed bugs']
 })
 ```
+
+Destroy:
+```
+$('input').autophil('destroy');
+```
+
+Options:
+* `opts`: []
+* `maxSuggestions`: 10
+* `delim`: '|'
+* `tabStopOnDelimiter`: false
+* `multiStringMatch`: false
+
 
