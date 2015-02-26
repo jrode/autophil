@@ -11,172 +11,169 @@
     dataArray: an array of strings
     
     options = {
-        maxSuggestions: (int) - default 15 - maximum number of items in dropdown
+        opts: (array of strings) - the autofill suggestions
+        maxSuggestions: (int) - default 15 - maximum number of items to show in dropdown
         delim: (char or string) - default '|' - delimiter character when using tabStopOnDelimiter
         tabStopOnDelimiter: (boolean) - default false - when true a tab/enter keypress event fills only to next delimiter
         multiStringMatch: (boolean) - default false - when true suggestions include partial matches of each word in search string
     }
 */
 
-;(function($, document, window, undefined) {
+;(function($, window, document, undefined) {
 
-    $.fn.autophil = function(dataArray, options) {
-        options = options || {};
+    var pluginName = "autophil";
+    var defaults = {
+            opts: [],
+            maxSuggestions: 10,
+            delim: '|',
+            tabStopOnDelimiter: false,
+            multiStringMatch: false
+        };
 
-        // options
-        var maxSuggestions = options.maxSuggestions || 15;
-        var delim = options.delim || '|';
-        var tabStopOnDelimiter = options.tabStopOnDelimiter || false;
-        var multiStringMatch = options.multiStringMatch || false;
+    function Plugin(element, options) {
+        var self = this;
+        this.element = $(element);
+        this.options = $.extend({}, defaults, options);
+        this._defaults = defaults;
+        this._name = pluginName;
+        var privateVars = ['wrapper', 'originalInput', 'hiddenInput', 'dropDown', 'listItemTemplate', 'listItems',
+                           'currentHover', 'topItem', 'fillItem', 'matchedIds', 'noMatches', 'partialText'];
+        privateVars.forEach(function(v) {
+            self[v] = null;
+        });
+        this.init();
+    }
 
-        // override conflicting settings
-        if (multiStringMatch) tabStopOnDelimiter = false;
+    Plugin.prototype = {
 
-        // dom elements
-        var wrapper;
-        var originalInput;
-        var hiddenInput;
-        var dropDown;
-        var listItemTemplate;
-        var listItems;
-
-        var currentHover;
-        var topItem;
-        var fillItem;
-        var matchedIds;
-        var noMatches;
-        var partialText;
-        var opts = [];
-
-        return this.each(function() {
-            init(this);
-        }).focus();
-
-        function init(input) {
-            // exit if invalid Array
-            if (Object.prototype.toString.call(dataArray) !== '[object Array]') {
+        init: function() {
+            if (Object.prototype.toString.call(this.options.opts) !== '[object Array]') {
                 console.warn('%cYou must initialize autophil with a valid Array.', 'color: #00f;');
                 return false;
+            } else {
+                this.options.opts = this.options.opts.sort().map(function(str) { return str.toLowerCase(); });
             }
 
-            opts = dataArray.sort().map(function(str) { return str.toLowerCase(); });
+            // multiStringMatch setting overrides tabStopOnDelimeter
+            if (this.options.multiStringMatch) this.options.tabStopOnDelimiter = false;
 
-            originalInput = $(input);
-            $.fn.autophil.destroy(originalInput);
-            
-            createElements();
-            createListItems();
-            bindEvents();
-        }
+            this.destroy();
+            this.createElements();
+            this.createListItems();
+            this.bindEvents();
+        },
 
-        function createListItems() {
-            dropDown.empty();
+        createListItems: function() {
+            this.dropDown.empty();
 
-            for (var i = 0; i < opts.length; i++) {
-                var li = listItemTemplate.clone();
-                li.text(opts[i]).attr('data-option', i);
-                li.appendTo(dropDown);
+            for (var i = 0; i < this.options.opts.length; i++) {
+                var li = this.listItemTemplate.clone();
+                li.text(this.options.opts[i]).attr('data-option', i);
+                li.appendTo(this.dropDown);
             }
 
-            listItems = dropDown.find('li');
-        }
+            this.listItems = this.dropDown.find('li');
+        },
 
-        function createElements() {
-            var previousElement = originalInput.prev();
-            var parentElement = originalInput.parent();
+        createElements: function() {
+            var previousElement = this.element.prev();
+            var parentElement = this.element.parent();
 
-            wrapper = $('<div class="ap-wrapper"></div>');
-            wrapper.addClass(originalInput.attr('class'));
-            wrapper.css({
-                'height': originalInput.css('height')
+            this.wrapper = $('<div class="ap-wrapper"></div>');
+            this.wrapper.addClass(this.element.attr('class'));
+            this.wrapper.css({
+                'height': this.element.css('height')
             });
 
-            inheritStyles(originalInput, wrapper, ['width', 'display']);
+            this.inheritStyles(this.element, this.wrapper, ['width', 'display']);
 
-            hiddenInput = originalInput.attr('autocomplete', 'off').clone();
+            this.hiddenInput = this.element.attr('autocomplete', 'off').clone();
 
-            hiddenInput.attr({
-                'name': originalInput.attr('name') + '_hidden',
-                'id': originalInput.attr('id') + '_hidden'
+            this.hiddenInput.attr({
+                'name': this.element.attr('name') + '_hidden',
+                'id': this.element.attr('id') + '_hidden'
             }).addClass('ap-hint');
 
-            inheritStyles(originalInput, hiddenInput, ['padding', 'letter-spacing', 'font-kerning', 'background-color']);
+            this.inheritStyles(this.element, this.hiddenInput, ['padding', 'letter-spacing', 'font-kerning', 'background-color']);
 
-            dropDown = $('<ul class="ap-list"></ul>').css({
-                'top': originalInput.css('height'),
+            this.dropDown = $('<ul class="ap-list"></ul>').css({
+                'top': this.element.css('height'),
             });
 
-            inheritStyles(originalInput, dropDown, ['font-family', 'font-size', 'border-color']);
+            this.inheritStyles(this.element, this.dropDown, ['font-family', 'font-size', 'border-color']);
 
-            originalInput.css('background-color', 'transparent').addClass('ap-input');
+            this.element.css('background-color', 'transparent').addClass('ap-input');
 
-            listItemTemplate = $('<li class="ap-listitem"></li>');
+            this.listItemTemplate = $('<li class="ap-listitem"></li>');
 
-            listItemTemplate.css({
+            this.listItemTemplate.css({
                 'padding': '2px 0',
-                'padding-left': originalInput.css('padding-left')
+                'padding-left': this.element.css('padding-left')
             });
 
-            createListItems();
+            this.createListItems();
 
-            wrapper.append(originalInput);
-            wrapper.append(hiddenInput);
-            wrapper.append(dropDown);
+            this.wrapper.append(this.element);
+            this.wrapper.append(this.hiddenInput);
+            this.wrapper.append(this.dropDown);
 
             // insert wrapper into DOM
             if (previousElement.length) {
-                wrapper.insertAfter(previousElement);
+                this.wrapper.insertAfter(previousElement);
             } else {
-                wrapper.prependTo(parentElement);
+                this.wrapper.prependTo(parentElement);
             }
 
-            wrapper.before(' ');
-        }
+            // assume there was a linebreak or space in markup
+            this.wrapper.before(' ');
+        },
 
-        function inheritStyles(sourceEl, targetEl, stylesArray) {
+        inheritStyles: function(sourceEl, targetEl, stylesArray) {
             var stylesObject = {};
             for (var i = 0; i < stylesArray.length; i++) {
                 var style = stylesArray[i];
                 stylesObject[style] = sourceEl.css(style);
             }
             return targetEl.css(stylesObject);
-        }
+        },
 
-        function bindEvents() {
-            originalInput.on('keydown', keyDownHandler);
-            originalInput.on('keyup', keyUpHandler);
-            originalInput.on('blur', removeHint);
+        bindEvents: function() {
+            var self = this;
+            this.element.on('keydown', $.proxy(this.keyDownHandler, this));
+            this.element.on('keyup', $.proxy(this.keyUpHandler, this));
+            this.element.on('blur', $.proxy(this.removeHint, this));
 
-            dropDown.on('mouseover', 'li', function() {
-                itemHover(parseInt($(this).attr('data-option')));
+            this.dropDown.on('mouseover', 'li', function() {
+                self.itemHover(parseInt($(this).attr('data-option')));
             });
 
-            dropDown.on('click', 'li', function(e) {
-                itemSelect(e, parseInt($(this).attr('data-option')));
+            this.dropDown.on('click', 'li', function(e) {
+                self.itemSelect(e, parseInt($(this).attr('data-option')));
             });
 
-            keyDownHandler();
-        }
+            this.keyDownHandler();
+        },
 
-        function keyDownHandler(e) {
+        keyDownHandler: function(e) {
             e = e || window.event;
             var keyCode = e.keyCode;
 
             // TAB, ENTER, END, RIGHT --> select an item
             if (keyCode === 9 || keyCode === 13 || keyCode === 35 || keyCode === 39) {
                 var choice = null;
-                if (fillItem !== null) choice = fillItem;
-                if (currentHover !== null) choice = currentHover;
+                if (this.fillItem !== null) choice = this.fillItem;
+                if (this.currentHover !== null) choice = this.currentHover;
 
                 // if something is selected
                 if (choice !== null) {
-                    itemSelect({}, choice);
+                    this.itemSelect({}, choice);
                     return false; // prevent form submit
                 }
             }
-        }
+        },
 
-        function keyUpHandler(e) {
+        keyUpHandler: function(e) {
+            var self = this;
             e = e || {};
             var keyCode = e.keyCode;
 
@@ -185,162 +182,182 @@
 
             // ESCAPE --> hide list and selected items
             if (keyCode === 27) {
-                dropDown.hide();
-                fillItem = null;
-                currentHover = null;
-                originalInput.focus();
+                self.dropDown.hide();
+                self.fillItem = null;
+                self.currentHover = null;
+                self.element.focus();
                 return false;
             }
 
-            processInputText();
+            self.processInputText();
 
-            handleUpAndDownKeys(keyCode);
+            self.handleUpAndDownKeys(keyCode);
 
-            fillItem = null;
-            if (topItem !== null) fillItem = topItem;
-            if (currentHover !== null) fillItem = currentHover;
+            self.fillItem = null;
+            if (self.topItem !== null) self.fillItem = self.topItem;
+            if (self.currentHover !== null) self.fillItem = self.currentHover;
 
-            itemHover();
-            updateHint(fillItem);
-        }
+            self.itemHover();
+            self.updateHint(self.fillItem);
+        },
 
-        function processInputText() {
-            partialText = originalInput.val().trim();
-            searchText = partialText.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
+        processInputText: function() {
+            var self = this;
+            this.partialText = this.element.val().trim();
+            this.searchText = this.partialText.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
             
-            if (multiStringMatch) {
-                var searches = searchText.split(' ');
-                var matches = opts.map(function(item) {
+            // match multiple strings in search query (separated by space)
+            if (this.options.multiStringMatch) {
+                var searches = this.searchText.split(' ');
+
+                // matches is an array of booleans
+                var matches = this.options.opts.map(function(item) {
                     for (var i = 0; i < searches.length; i++) {
                         if (! new RegExp(searches[i]).test(item)) {
                             return false;
                         }
                     }
-                    return true;
+                    // return false for an exact match so it does not get suggested
+                    return item !== self.partialText;
                 });
 
             } else {
-
-                var regex = new RegExp('^' + searchText + '.+$');
-                var matches = opts.map(function(item) { return regex.test(item); });
+                // exact string match
+                var regex = new RegExp('^' + this.searchText + '.+$');
+                var matches = this.options.opts.map(function(item) { return regex.test(item); });
             }
 
-            matchedIds = [];
+            // create an array of the matched ids
+            this.matchedIds = [];
             for (var i = 0; i < matches.length; i++) {
                 if (matches[i]) {
-                    matchedIds.push(i);
+                    this.matchedIds.push(i);
                 }
             }
 
             // determine autophil and hover states
-            var currentHoverIsInTheList = matchedIds.indexOf(currentHover) !== -1;
-            noMatches = matchedIds.length === 0;
-            topItem = noMatches ? null : matchedIds[0];
-            currentHover = currentHoverIsInTheList ? currentHover : null;
+            var currentHoverIsInTheList = this.matchedIds.indexOf(this.currentHover) !== -1;
+            this.noMatches = this.matchedIds.length === 0;
+            this.topItem = this.noMatches ? null : this.matchedIds[0];
+            this.currentHover = currentHoverIsInTheList ? this.currentHover : null;
 
             // toggle list elements
-            dropDown.toggle(!noMatches && partialText.length > 0);
-            if (!noMatches) {
+            this.dropDown.toggle(!this.noMatches && this.partialText.length > 0);
+            if (!this.noMatches) {
                 var num = 0;
-                listItems.each(function(i, li) {
+                this.listItems.each(function(i, li) {
                     var $li = $(li);
                     // toggle row
-                    if (matches[i] && ++num < maxSuggestions) {
+                    if (matches[i] && ++num < self.options.maxSuggestions) {
                         $li.show();
-                        if (multiStringMatch) {
-                            $li.text(opts[i]);
+                        if (self.options.multiStringMatch) {
+                            $li.text(self.options.opts[i]);
                         } else {
-                            $li.html(partialText + '<b>' + opts[i].substr(partialText.length) + '</b>');
+                            $li.html(self.partialText + '<b>' + self.options.opts[i].substr(self.partialText.length) + '</b>');
                         }
                     } else {
                         $li.hide();
                     }
                 });
             }
-        }
+        },
 
-        function handleUpAndDownKeys(keyCode) {
+        handleUpAndDownKeys: function(keyCode) {
             // UP
             if (keyCode === 38 && !noMatches) {
-                var lastVisible = matchedIds[matchedIds.length - 1];
-                var currIndex = matchedIds.indexOf(currentHover);
-                currentHover = currentHover && currentHover > 0 ? matchedIds[currIndex - 1] : lastVisible;
-                itemHover();
+                var lastVisible = this.matchedIds[matchedIds.length - 1];
+                var currIndex = this.matchedIds.indexOf(this.currentHover);
+                this.currentHover = this.currentHover && this.currentHover > 0 ? this.matchedIds[currIndex - 1] : lastVisible;
+                this.itemHover();
             }
 
             // DOWN
-            if (keyCode === 40 && !noMatches) {
+            if (keyCode === 40 && !this.noMatches) {
                 // failed match (-1 + 1) will go to index 0
-                currentHover = matchedIds[matchedIds.indexOf(currentHover) + 1];
-                if (!currentHover) currentHover = 0;
-                itemHover();
+                this.currentHover = this.matchedIds[this.matchedIds.indexOf(this.currentHover) + 1];
+                if (!this.currentHover) this.currentHover = 0;
+                this.itemHover();
             }
-        }
+        },
 
-        function itemHover(id) {
-            currentHover = typeof id !== 'undefined' ? id : currentHover;
-            listItems.removeClass('ap-hover');
+        itemHover: function(id) {
+            this.currentHover = typeof id !== 'undefined' ? id : this.currentHover;
+            this.listItems.removeClass('ap-hover');
 
-            if (parseInt(currentHover) > -1) {
-                listItems.eq(currentHover).addClass('ap-hover');
-                updateHint(currentHover);
+            if (parseInt(this.currentHover) > -1) {
+                this.listItems.eq(this.currentHover).addClass('ap-hover');
+                this.updateHint(this.currentHover);
             }
-        }
+        },
 
-        function updateHint(id) {
-            hiddenInput.val(id !== null && !multiStringMatch ? opts[id] : '');
-        }
+        updateHint: function(id) {
+            this.hiddenInput.val(id !== null && !this.options.multiStringMatch ? this.options.opts[id] : '');
+        },
 
-        function removeHint(e) {
-            hiddenInput.val('');
-        }
+        removeHint: function(e) {
+            this.hiddenInput.val('');
+        },
 
-        function itemSelect(e, id) {
-            currentHover = null;
-            itemFill = null;
-            var fillText = listItems.eq(id).text();
+        itemSelect: function(e, id) {
+            this.currentHover = null;
+            this.itemFill = null;
+            var fillText = this.listItems.eq(id).text();
 
-            if (tabStopOnDelimiter && e.type !== 'click') {
-                var remainingText = fillText.substr(partialText.length);
-                var delimStart = remainingText.indexOf(delim);
+            // select up to delimiter
+            if (this.options.tabStopOnDelimiter && e.type !== 'click') {
+                var remainingText = fillText.substr(this.partialText.length);
+                var delimStart = remainingText.indexOf(this.options.delim);
 
                 if (delimStart !== -1) {
-                    fillText = fillText.substr(0, partialText.length) + remainingText.substr(0, delimStart) + delim + ' ';
-                    partialText = fillText;
-                    itemFill = id;
+                    fillText = fillText.substr(0, this.partialText.length) + remainingText.substr(0, delimStart) + this.options.delim + ' ';
+                    this.partialText = fillText;
+                    this.itemFill = id;
                 }
             }
 
-            itemHover();
-            originalInput.val(fillText);
-            keyUpHandler(e);
-        }
-    }
+            this.itemHover();
+            this.element.val(fillText);
+            this.keyUpHandler(e);
+        },
+        
+        destroy: function() {
+            if (this.element.hasClass('ap-input')) {
+                var oldWrapper = this.element.parent();
+                var wrapperParent = oldWrapper.parent();
+                var wrapperPrevious = oldWrapper.prev();
 
-    $.fn.autophil.destroy = function(originalInput) {
-        if (originalInput.hasClass('ap-input')) {
-            var oldWrapper = originalInput.parent();
-            var wrapperParent = oldWrapper.parent();
-            var wrapperPrevious = oldWrapper.prev();
+                if (wrapperPrevious.length) {
+                    this.element.insertAfter(wrapperPrevious);
+                } else {
+                    this.element.prependTo(wrapperParent);
+                }
 
-            if (wrapperPrevious.length) {
-                originalInput.insertAfter(wrapperPrevious);
-            } else {
-                originalInput.prependTo(wrapperParent);
+                oldWrapper.remove();
+
+                this.element.css({
+                    'position': '',
+                    'top': '',
+                    'left': '',
+                    'width': '',
+                    'background-color': ''
+                }).removeClass('ap-input').before(' ');
             }
-
-            oldWrapper.remove();
-
-            originalInput.css({
-                'position': '',
-                'top': '',
-                'left': '',
-                'width': '',
-                'background-color': ''
-            }).removeClass('ap-input').before(' ');
         }
-    }
+    };
 
-    
+    // https://github.com/jquery-boilerplate/jquery-patterns/blob/master/patterns/jquery.basic.plugin-boilerplate.js
+    $.fn[pluginName] = function(options) {
+        if (options === 'destroy' && $(this).data().hasOwnProperty(pluginName)) {
+            console.warn('%cDestroyed autophil.', 'color: #00f;');
+            $(this).data()[pluginName].destroy();
+        }
 
-})(jQuery, document, window, undefined);
+        return this.each(function() {
+            if (!$.data(this, pluginName)) {
+                $.data(this, pluginName,
+                new Plugin(this, options));
+            }
+        }).focus();
+    };
+
+})(jQuery, window, document);
